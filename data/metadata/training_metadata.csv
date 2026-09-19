@@ -1,0 +1,5 @@
+sample_id,clean_file,noisy_file,noise_file,target_snr_db,actual_snr_db,sample_rate
+sample_0001,sample_0001_clean.wav,sample_0001_snr_-5dB.wav,white_noise.wav,-5,-5.00000021310501,16000
+sample_0002,sample_0002_clean.wav,sample_0002_snr_0dB.wav,low_frequency_noise.wav,0,1.8642035262824877e-08,16000
+sample_0003,sample_0003_clean.wav,sample_0003_snr_5dB.wav,low_frequency_noise.wav,5,4.999999928959289,16000
+sample_0004,sample_0004_clean.wav,sample_0004_snr_10dB.wav,white_noise.wav,10,9.999999826923613,16000
