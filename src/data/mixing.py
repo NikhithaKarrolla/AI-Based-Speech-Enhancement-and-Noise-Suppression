@@ -159,10 +159,7 @@ def mix_audio(
         clean + scaled_noise
     )
 
-    return (
-        noisy_audio.astype(np.float32),
-        scaled_noise.astype(np.float32)
-    )
+    return noisy_audio.astype(np.float32)
 
 
 def peak_normalize(

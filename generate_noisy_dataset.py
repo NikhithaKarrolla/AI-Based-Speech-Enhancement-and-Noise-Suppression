@@ -1,26 +1,38 @@
 import os
 import random
-import numpy as np
-import pandas as pd
 
-from src.audio.preprocessing import load_audio
-from src.data.mixing import mix_audio, peak_normalize, calculate_snr
+import librosa
+import soundfile as sf
+
+from configs.config import (
+    SAMPLE_RATE,
+    SNR_LEVELS,
+    RANDOM_SEED
+)
+
+from src.data.mixing import (
+    calculate_snr,
+    mix_audio
+)
 
 
 # ============================================
-# CONFIGURATION
+# DIRECTORIES
 # ============================================
 
-CLEAN_DIR = "data/raw/clean"
-NOISE_DIR = "data/raw/noise"
+RAW_CLEAN_DIR = "data/raw/clean"
+RAW_NOISE_DIR = "data/raw/noise"
 
-OUTPUT_DIR = "data"
 
-SAMPLE_RATE = 16000
+# ============================================
+# DATASET SPLITS
+# ============================================
 
-SNR_LEVELS = [-5, 0, 5, 10]
-
-RANDOM_SEED = 42
+SPLITS = {
+    "train": 0.8,
+    "validation": 0.1,
+    "test": 0.1
+}
 
 
 # ============================================
@@ -28,67 +40,65 @@ RANDOM_SEED = 42
 # ============================================
 
 random.seed(RANDOM_SEED)
-np.random.seed(RANDOM_SEED)
 
 
 # ============================================
-# CREATE DIRECTORIES
+# NOISE FILES
 # ============================================
 
-for split in ["train", "validation", "test"]:
-
-    os.makedirs(
-        os.path.join(
-            OUTPUT_DIR,
-            split,
-            "clean"
-        ),
-        exist_ok=True
-    )
-
-    os.makedirs(
-        os.path.join(
-            OUTPUT_DIR,
-            split,
-            "noisy"
-        ),
-        exist_ok=True
-    )
+NOISE_FILES = [
+    "white_noise.wav",
+    "low_frequency_noise.wav",
+    "mixed_noise.wav"
+]
 
 
 # ============================================
-# FIND CLEAN FILES
+# FIND CLEAN RECORDINGS
 # ============================================
 
 clean_files = [
     file
-    for file in os.listdir(CLEAN_DIR)
+    for file in os.listdir(RAW_CLEAN_DIR)
     if file.lower().endswith(".wav")
 ]
 
 clean_files.sort()
 
-if len(clean_files) == 0:
-    raise ValueError(
-        "No clean WAV files found."
-    )
+
+print("=" * 60)
+print("DATASET GENERATION")
+print("=" * 60)
+
+print("\nTotal clean recordings:")
+print(len(clean_files))
+
+for file in clean_files:
+    print(" ", file)
 
 
 # ============================================
-# SHUFFLE
+# RECORDING-LEVEL SPLIT
 # ============================================
 
 random.shuffle(clean_files)
 
+total_files = len(clean_files)
 
-# ============================================
-# SPLIT
-# ============================================
+train_count = int(total_files * 0.8)
+validation_count = int(total_files * 0.1)
 
-total = len(clean_files)
+# Make sure validation has at least one recording
+if validation_count < 1:
+    validation_count = 1
 
-train_count = int(total * 0.8)
-validation_count = int(total * 0.1)
+test_count = total_files - train_count - validation_count
+
+# Make sure test has at least one recording
+if test_count < 1:
+    test_count = 1
+    train_count = total_files - validation_count - test_count
+
 
 train_files = clean_files[:train_count]
 
@@ -102,181 +112,230 @@ test_files = clean_files[
 ]
 
 
-splits = {
-    "train": train_files,
-    "validation": validation_files,
-    "test": test_files
-}
+# ============================================
+# DISPLAY SPLIT
+# ============================================
+
+print("\n" + "=" * 60)
+print("RECORDING-LEVEL SPLIT")
+print("=" * 60)
+
+print("\nTrain recordings:")
+for file in train_files:
+    print(" ", file)
+
+print("\nValidation recordings:")
+for file in validation_files:
+    print(" ", file)
+
+print("\nTest recordings:")
+for file in test_files:
+    print(" ", file)
 
 
-print("\nDataset split:")
+# ============================================
+# CREATE DIRECTORIES
+# ============================================
 
-for split, files in splits.items():
-    print(
-        f"{split}: {len(files)} files"
+for split in SPLITS:
+
+    os.makedirs(
+        f"data/{split}/clean",
+        exist_ok=True
+    )
+
+    os.makedirs(
+        f"data/{split}/noisy",
+        exist_ok=True
     )
 
 
 # ============================================
-# FIND NOISE FILES
+# CLEAR OLD GENERATED DATA
 # ============================================
 
-noise_files = [
-    file
-    for file in os.listdir(NOISE_DIR)
-    if file.lower().endswith(".wav")
-]
+for split in SPLITS:
 
-noise_files.sort()
+    clean_dir = f"data/{split}/clean"
+    noisy_dir = f"data/{split}/noisy"
 
-if len(noise_files) == 0:
-    raise ValueError(
-        "No noise WAV files found."
+    for file in os.listdir(clean_dir):
+
+        if file.lower().endswith(".wav"):
+
+            os.remove(
+                os.path.join(clean_dir, file)
+            )
+
+    for file in os.listdir(noisy_dir):
+
+        if file.lower().endswith(".wav"):
+
+            os.remove(
+                os.path.join(noisy_dir, file)
+            )
+
+
+# ============================================
+# LOAD NOISE FILES
+# ============================================
+
+noise_data = {}
+
+for noise_file in NOISE_FILES:
+
+    noise_path = os.path.join(
+        RAW_NOISE_DIR,
+        noise_file
     )
 
-
-# ============================================
-# METADATA
-# ============================================
-
-metadata = []
-
-
-# ============================================
-# GENERATE DATASET
-# ============================================
-
-for split, files in splits.items():
-
-    print(
-        f"\nGenerating {split} dataset..."
+    noise, _ = librosa.load(
+        noise_path,
+        sr=SAMPLE_RATE,
+        mono=True
     )
 
-    for clean_filename in files:
+    noise_data[noise_file] = noise
+
+
+# ============================================
+# GENERATE DATA FOR ONE SPLIT
+# ============================================
+
+def generate_split(split_name, files):
+
+    clean_output_dir = f"data/{split_name}/clean"
+    noisy_output_dir = f"data/{split_name}/noisy"
+
+    sample_counter = 0
+
+    for clean_file in files:
 
         clean_path = os.path.join(
-            CLEAN_DIR,
-            clean_filename
+            RAW_CLEAN_DIR,
+            clean_file
         )
 
-        clean_audio, sr = load_audio(
+        # Load clean speech
+        clean_audio, _ = librosa.load(
             clean_path,
-            SAMPLE_RATE
+            sr=SAMPLE_RATE,
+            mono=True
         )
 
-        # Remove extension
         base_name = os.path.splitext(
-            clean_filename
+            clean_file
         )[0]
 
-        # Save clean reference
-        clean_output = os.path.join(
-            OUTPUT_DIR,
-            split,
-            "clean",
-            f"{base_name}_clean.wav"
-        )
+        # ====================================
+        # CREATE SAMPLES FOR EACH SNR
+        # ====================================
 
-        clean_audio = peak_normalize(
-            clean_audio
-        )
-
-        import soundfile as sf
-
-        sf.write(
-            clean_output,
-            clean_audio,
-            sr
-        )
-
-        # Generate noisy versions
         for snr in SNR_LEVELS:
 
-            noise_filename = random.choice(
-                noise_files
+            # Randomly select noise type
+            noise_name = random.choice(
+                NOISE_FILES
             )
 
-            noise_path = os.path.join(
-                NOISE_DIR,
-                noise_filename
-            )
+            noise = noise_data[noise_name]
 
-            noise_audio, _ = load_audio(
-                noise_path,
-                SAMPLE_RATE
-            )
-
-            noisy_audio, scaled_noise = mix_audio(
+            # Create noisy speech
+            noisy_audio = mix_audio(
                 clean_audio,
-                noise_audio,
+                noise,
                 snr
             )
 
-            actual_snr = calculate_snr(
-                clean_audio,
-                scaled_noise
+            # Output filenames
+            clean_output_name = (
+                f"{base_name}_clean.wav"
             )
 
-            noisy_filename = (
+            noisy_output_name = (
                 f"{base_name}_snr_{snr}dB.wav"
             )
 
-            noisy_output = os.path.join(
-                OUTPUT_DIR,
-                split,
-                "noisy",
-                noisy_filename
+            clean_output_path = os.path.join(
+                clean_output_dir,
+                clean_output_name
             )
 
+            noisy_output_path = os.path.join(
+                noisy_output_dir,
+                noisy_output_name
+            )
+
+            # Save clean recording once
+            if not os.path.exists(
+                clean_output_path
+            ):
+
+                sf.write(
+                    clean_output_path,
+                    clean_audio,
+                    SAMPLE_RATE
+                )
+
+            # Save noisy recording
             sf.write(
-                noisy_output,
+                noisy_output_path,
                 noisy_audio,
-                sr
+                SAMPLE_RATE
             )
 
-            metadata.append({
-                "split": split,
-                "clean_file": clean_output,
-                "noisy_file": noisy_output,
-                "noise_file": noise_filename,
-                "target_snr_db": snr,
-                "actual_snr_db": actual_snr
-            })
+            # Calculate actual SNR
+            actual_snr = calculate_snr(
+                clean_audio,
+                noisy_audio - clean_audio
+            )
 
             print(
-                f"{split}: "
-                f"{base_name} | "
-                f"SNR={snr} dB | "
-                f"actual={actual_snr:.2f} dB"
+                f"{split_name:10s} | "
+                f"{base_name:20s} | "
+                f"SNR={snr:3d} dB | "
+                f"Actual={actual_snr:6.2f} dB | "
+                f"Noise={noise_name}"
             )
 
+            sample_counter += 1
+
+    return sample_counter
+
 
 # ============================================
-# SAVE METADATA
+# GENERATE ALL SPLITS
 # ============================================
 
-os.makedirs(
-    "data/metadata",
-    exist_ok=True
+train_samples = generate_split(
+    "train",
+    train_files
 )
 
-metadata_path = (
-    "data/metadata/"
-    "training_metadata.csv"
+validation_samples = generate_split(
+    "validation",
+    validation_files
 )
 
-df = pd.DataFrame(metadata)
-
-df.to_csv(
-    metadata_path,
-    index=False
+test_samples = generate_split(
+    "test",
+    test_files
 )
 
 
-print("\n================================")
-print("Dataset generation completed.")
-print("================================")
+# ============================================
+# SUMMARY
+# ============================================
 
-print(
-    f"Metadata saved to: {metadata_path}"
-)
+print("\n" + "=" * 60)
+print("DATASET GENERATION COMPLETE")
+print("=" * 60)
+
+print("\nTrain noisy samples:")
+print(train_samples)
+
+print("\nValidation noisy samples:")
+print(validation_samples)
+
+print("\nTest noisy samples:")
+print(test_samples)
