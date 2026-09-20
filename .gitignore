@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+
+# Generated audio
+outputs/audio/*.wav
+
+# Generated checkpoints
+checkpoints/*.pth
+
+# Generated metrics
+outputs/metrics/*.csv
+
+# Generated spectrograms
+outputs/spectrograms/*.png
+
+# Training plots
+outputs/training_validation_loss.png
