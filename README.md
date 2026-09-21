@@ -1,18 +1,3 @@
-Create/open:
-
-```
-```
-
-```
-README.md
-```
-
-Replace its contents with this:
-
-```
-```
-
-````
 # Deep Learning Based Real-Time Speech Enhancement and Noise Suppression
 
 A deep learning-based speech enhancement system that reduces background noise from speech using spectrogram-based neural networks. The project implements traditional DSP, CNN, U-Net, and Mask U-Net approaches and provides both a real-time audio enhancement prototype and a web application.
