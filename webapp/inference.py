@@ -13,7 +13,11 @@ N_FFT = 512
 HOP_LENGTH = 128
 WIN_LENGTH = 512
 
-CHECKPOINT_PATH = Path("checkpoints/mask_unet_best.pth")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+CHECKPOINT_PATH = (
+    PROJECT_ROOT / "checkpoints" / "mask_unet_best.pth"
+)
 
 
 class SpeechEnhancer:
