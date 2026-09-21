@@ -23,3 +23,7 @@ outputs/spectrograms/*.png
 outputs/training_validation_loss.png
 
 outputs/mask_unet_training_validation_loss.png
+
+# Web application runtime audio
+webapp/uploads/*.wav
+webapp/outputs/*.wav
