@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Speech Enhancement</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>AI Speech Enhancement</h1>
+
+    <p class="subtitle">
+        Deep Learning Based Real-Time Speech Enhancement
+        and Noise Suppression
+    </p>
+
+    <div class="card">
+
+        <h2>Enhance Your Audio</h2>
+
+        <input
+            type="file"
+            id="audioFile"
+            accept="audio/*"
+        >
+
+        <button id="enhanceButton">
+            Enhance Speech
+        </button>
+
+        <p id="status"></p>
+
+    </div>
+
+
+    <div
+        class="card"
+        id="resultCard"
+        style="display: none;"
+    >
+
+        <h2>Enhanced Speech</h2>
+
+        <audio
+            id="audioPlayer"
+            controls
+        ></audio>
+
+        <br>
+
+        <a
+            id="downloadButton"
+            class="download"
+            href="#"
+        >
+            Download Enhanced Audio
+        </a>
+
+    </div>
+
+</div>
+
+<script src="/static/script.js"></script>
+
+</body>
+
+</html>

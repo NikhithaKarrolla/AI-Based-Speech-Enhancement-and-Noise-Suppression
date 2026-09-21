@@ -9,3 +9,7 @@ torch
 torchaudio
 pystoi
 sounddevice
+fastapi
+uvicorn
+python-multipart
+jinja2
